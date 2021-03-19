@@ -6,6 +6,21 @@ module StripeEvent
 
     def event
       StripeEvent.instrument(verified_event)
+      session = Stripe::Checkout::Session.retrieve(event.data.object.id)
+
+      card=Card.new
+      card.user_id=current_user.id
+      card.customer_id=event.data.object.customer
+      card.card_id=event.data.object.id
+      card.save
+
+      coin=User.find_by(id: current_user.id)
+      coin.coin+=event.data.object.amount_total
+      coin.save
+      coinhistory=Coinhistory.new
+      coinhistory.user_id=current_user.id
+      coinhistory.coin_id=Coin.find_by(price: event.data.object.amount_total).id
+      coinhistory.save
       head :ok
     rescue Stripe::SignatureVerificationError => e
       log_error(e)
